@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Order Confirmed — SALANYA</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div id="site-header"></div>
+<section class="section" style="text-align:center; padding:100px 32px;">
+  <div style="font-size:40px; color:var(--gold); margin-bottom:20px;">✦</div>
+  <h1 style="margin-bottom:16px;">Thank You For Your Order</h1>
+  <p style="color:var(--silver); font-size:19px;">Every piece tells a story. Yours is beautiful.</p>
+  <p style="margin-top:20px; font-family:'Cinzel',serif; letter-spacing:0.05em;" id="orderNum"></p>
+  <div style="margin-top:36px; display:flex; gap:16px; justify-content:center; flex-wrap:wrap;">
+    <a href="/shop.html" class="btn">Continue Shopping</a>
+    <a href="/dashboard.html" class="btn btn-solid">View My Orders</a>
+  </div>
+</section>
+<div id="site-footer"></div>
+<script src="/js/main.js"></script>
+<script>
+const params = new URLSearchParams(location.search);
+document.getElementById('orderNum').textContent = 'Order Number: ' + (params.get('order') || '—');
+refreshCartBadge();
+</script>
+</body>
+</html>

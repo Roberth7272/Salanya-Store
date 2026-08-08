@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Your Cart — SALANYA</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div id="site-header"></div>
+
+<section class="cart-page">
+  <h1 style="margin-bottom:30px;">Your Cart</h1>
+  <div id="cartItems"><div class="loader">Loading…</div></div>
+  <div id="cartSummaryWrap"></div>
+</section>
+
+<div id="site-footer"></div>
+<script src="/js/main.js"></script>
+<script>
+async function render() {
+  const cart = await api('/api/cart');
+  const itemsEl = document.getElementById('cartItems');
+  const summaryEl = document.getElementById('cartSummaryWrap');
+
+  if (cart.items.length === 0) {
+    itemsEl.innerHTML = `<div class="empty-state"><p>Your cart is empty.</p><a href="/shop.html" class="btn btn-solid" style="margin-top:16px;">Continue Shopping</a></div>`;
+    summaryEl.innerHTML = '';
+    return;
+  }
+
+  itemsEl.innerHTML = cart.items.map(i => `
+    <div class="cart-row" data-id="${i.productId}">
+      <img src="${i.image_url}" alt="${i.name}">
+      <div>
+        <div style="font-family:'Cinzel',serif; font-size:15px;">${i.name}</div>
+        <div style="color:var(--gold-soft); margin-top:6px;">${formatPrice(i.price)}</div>
+      </div>
+      <div class="qty-selector" style="margin:0;">
+        <button class="qm">−</button><span>${i.quantity}</span><button class="qp">+</button>
+      </div>
+      <div style="font-family:'Cinzel',serif;">${formatPrice(i.lineTotal)}</div>
+      <button class="remove-btn">Remove</button>
+    </div>`).join('');
+
+  summaryEl.innerHTML = `
+    <div class="cart-summary">
+      <div class="summary-line"><span>Subtotal</span><span>${formatPrice(cart.subtotal)}</span></div>
+      <div class="summary-line"><span>Shipping</span><span>${cart.shipping_fee === 0 ? 'FREE' : formatPrice(cart.shipping_fee)}</span></div>
+      <div class="summary-line total"><span>Total</span><span>${formatPrice(cart.total)}</span></div>
+      <a href="/checkout.html" class="btn btn-solid btn-full" style="margin-top:20px;">Proceed to Checkout →</a>
+    </div>`;
+
+  qsa('.cart-row').forEach(row => {
+    const id = row.dataset.id;
+    row.querySelector('.qm').onclick = async () => {
+      const span = row.querySelector('.qty-selector span');
+      const newQty = parseInt(span.textContent) - 1;
+      await api('/api/cart/update', { method: 'POST', body: JSON.stringify({ productId: id, quantity: newQty }) });
+      render(); refreshCartBadge();
+    };
+    row.querySelector('.qp').onclick = async () => {
+      const span = row.querySelector('.qty-selector span');
+      const newQty = parseInt(span.textContent) + 1;
+      await api('/api/cart/update', { method: 'POST', body: JSON.stringify({ productId: id, quantity: newQty }) });
+      render(); refreshCartBadge();
+    };
+    row.querySelector('.remove-btn').onclick = async () => {
+      await api('/api/cart/remove', { method: 'POST', body: JSON.stringify({ productId: id }) });
+      render(); refreshCartBadge();
+    };
+  });
+}
+render();
+</script>
+</body>
+</html>

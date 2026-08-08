@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Products — SALANYA Admin</title>
+<link rel="stylesheet" href="/css/admin.css">
+</head>
+<body class="admin">
+<div class="admin-shell">
+  <div class="admin-sidebar" id="adminSidebar"></div>
+  <div class="admin-main">
+    <div class="admin-topbar">
+      <h1>Products</h1>
+      <button class="a-btn a-btn-primary" id="addBtn">+ Add Product</button>
+    </div>
+
+    <table class="a-table">
+      <thead><tr><th></th><th>Name</th><th>Category</th><th>Price</th><th>Stock</th><th>Status</th><th></th></tr></thead>
+      <tbody id="productsBody"><tr><td colspan="7">Loading…</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="a-modal-overlay" id="modalOverlay" style="display:none;">
+  <div class="a-modal">
+    <h2 id="modalTitle">Add Product</h2>
+    <form id="productForm">
+      <input type="hidden" id="productId">
+      <div class="a-form-group"><label>Name</label><input required id="f_name"></div>
+      <div class="a-form-row">
+        <div class="a-form-group"><label>Price (₹)</label><input required type="number" id="f_price"></div>
+        <div class="a-form-group"><label>Compare-at Price (₹)</label><input type="number" id="f_compare_price"></div>
+      </div>
+      <div class="a-form-row">
+        <div class="a-form-group"><label>Category</label><select id="f_category_id"></select></div>
+        <div class="a-form-group"><label>Stock</label><input required type="number" id="f_stock"></div>
+      </div>
+      <div class="a-form-row">
+        <div class="a-form-group"><label>Finish</label><input id="f_finish" placeholder="e.g. Oxidised Antique"></div>
+        <div class="a-form-group"><label>Weight</label><input id="f_weight" placeholder="e.g. 6.5 - 7.5 gm"></div>
+      </div>
+      <div class="a-form-group"><label>Size</label><input id="f_size"></div>
+      <div class="a-form-group"><label>Description</label><textarea id="f_description" rows="3"></textarea></div>
+      <div class="a-form-group"><label>Product Image (upload)</label><input type="file" id="f_image" accept="image/*"></div>
+      <div class="a-form-group"><label><input type="checkbox" id="f_bestseller" style="width:auto; margin-right:8px;">Mark as Bestseller</label></div>
+      <div class="a-error" id="formErr"></div>
+      <div style="display:flex; gap:10px; margin-top:16px;">
+        <button type="button" class="a-btn" id="cancelBtn">Cancel</button>
+        <button type="submit" class="a-btn a-btn-primary">Save Product</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="/js/admin/common.js"></script>
+<script>
+let categories = [];
+
+async function loadProducts() {
+  const products = await aApi('/api/admin/products');
+  document.getElementById('productsBody').innerHTML = products.map(p => `
+    <tr>
+      <td><img src="${p.image_url || ''}" alt=""></td>
+      <td>${p.name}</td>
+      <td>${p.category_name || '—'}</td>
+      <td>${aFormatPrice(p.price)}</td>
+      <td>${p.stock}</td>
+      <td><span class="a-badge ${p.is_active ? 'paid' : 'cancelled'}">${p.is_active ? 'Active' : 'Hidden'}</span></td>
+      <td>
+        <button class="a-btn a-btn-sm editBtn" data-id="${p.id}">Edit</button>
+        <button class="a-btn a-btn-sm a-btn-danger deleteBtn" data-id="${p.id}">Delete</button>
+      </td>
+    </tr>`).join('') || '<tr><td colspan="7">No products yet.</td></tr>';
+
+  aQsa('.editBtn').forEach(b => b.onclick = () => openModal(products.find(p => p.id == b.dataset.id)));
+  aQsa('.deleteBtn').forEach(b => b.onclick = async () => {
+    if (!confirm('Remove this product from the store?')) return;
+    await aApi('/api/admin/products/' + b.dataset.id, { method: 'DELETE' });
+    loadProducts();
+  });
+}
+
+function openModal(product) {
+  document.getElementById('modalTitle').textContent = product ? 'Edit Product' : 'Add Product';
+  document.getElementById('productId').value = product ? product.id : '';
+  document.getElementById('f_name').value = product ? product.name : '';
+  document.getElementById('f_price').value = product ? product.price : '';
+  document.getElementById('f_compare_price').value = product ? (product.compare_price || '') : '';
+  document.getElementById('f_category_id').innerHTML = categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  if (product && product.category_id) document.getElementById('f_category_id').value = product.category_id;
+  document.getElementById('f_stock').value = product ? product.stock : 10;
+  document.getElementById('f_finish').value = product ? (product.finish || '') : '';
+  document.getElementById('f_weight').value = product ? (product.weight || '') : '';
+  document.getElementById('f_size').value = product ? (product.size || '') : '';
+  document.getElementById('f_description').value = product ? (product.description || '') : '';
+  document.getElementById('f_bestseller').checked = product ? !!product.is_bestseller : false;
+  document.getElementById('f_image').value = '';
+  document.getElementById('formErr').textContent = '';
+  document.getElementById('modalOverlay').style.display = 'flex';
+}
+function closeModal() { document.getElementById('modalOverlay').style.display = 'none'; }
+
+document.getElementById('addBtn').onclick = () => openModal(null);
+document.getElementById('cancelBtn').onclick = closeModal;
+
+document.getElementById('productForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const errEl = document.getElementById('formErr');
+  errEl.textContent = '';
+  const id = document.getElementById('productId').value;
+
+  const fd = new FormData();
+  fd.append('name', document.getElementById('f_name').value);
+  fd.append('price', document.getElementById('f_price').value);
+  fd.append('compare_price', document.getElementById('f_compare_price').value);
+  fd.append('category_id', document.getElementById('f_category_id').value);
+  fd.append('stock', document.getElementById('f_stock').value);
+  fd.append('finish', document.getElementById('f_finish').value);
+  fd.append('weight', document.getElementById('f_weight').value);
+  fd.append('size', document.getElementById('f_size').value);
+  fd.append('description', document.getElementById('f_description').value);
+  fd.append('is_bestseller', document.getElementById('f_bestseller').checked ? '1' : '');
+  const imgFile = document.getElementById('f_image').files[0];
+  if (imgFile) fd.append('image', imgFile);
+
+  try {
+    const res = await fetch(id ? `/api/admin/products/${id}` : '/api/admin/products', {
+      method: id ? 'PUT' : 'POST', body: fd, credentials: 'same-origin'
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Could not save product.');
+    closeModal();
+    loadProducts();
+  } catch (err) { errEl.textContent = err.message; }
+});
+
+(async () => {
+  await initAdminShell('products');
+  categories = await aApi('/api/admin/categories');
+  loadProducts();
+})();
+</script>
+</body>
+</html>

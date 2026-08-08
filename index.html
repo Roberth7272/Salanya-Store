@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Login — SALANYA</title>
+<link rel="stylesheet" href="/css/admin.css">
+</head>
+<body class="admin">
+<div class="login-shell">
+  <div class="login-box">
+    <div class="admin-logo" style="margin-bottom:26px;">SALANYA<small>ADMIN PANEL</small></div>
+    <form id="loginForm">
+      <div class="a-form-group"><label>Email</label><input type="email" required id="email"></div>
+      <div class="a-form-group"><label>Password</label><input type="password" required id="password"></div>
+      <div class="a-error" id="err"></div>
+      <button class="a-btn a-btn-primary" style="width:100%; justify-content:center; padding:11px;" type="submit">Login</button>
+    </form>
+  </div>
+</div>
+<script src="/js/admin/common.js"></script>
+<script>
+(async () => {
+  const me = await aApi('/api/admin/me');
+  if (me.loggedIn) location.href = '/admin/dashboard.html';
+})();
+
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const err = document.getElementById('err');
+  err.textContent = '';
+  try {
+    await aApi('/api/admin/login', { method: 'POST', body: JSON.stringify({
+      email: document.getElementById('email').value,
+      password: document.getElementById('password').value
+    })});
+    location.href = '/admin/dashboard.html';
+  } catch (e) { err.textContent = e.message; }
+});
+</script>
+</body>
+</html>

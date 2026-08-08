@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SALANYA</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div id="site-header"></div>
+<div id="productRoot" class="loader">Loading…</div>
+<div id="site-footer"></div>
+<script src="/js/main.js"></script>
+<script>
+let currentProduct = null;
+let qty = 1;
+
+async function load() {
+  const params = new URLSearchParams(location.search);
+  const slug = params.get('slug');
+  if (!slug) { document.getElementById('productRoot').innerHTML = '<p style="text-align:center; padding:60px;">Product not found.</p>'; return; }
+
+  try {
+    const p = await api('/api/products/' + slug);
+    currentProduct = p;
+    document.title = p.name + ' — SALANYA';
+    document.getElementById('productRoot').outerHTML = `
+    <section class="product-detail" id="productRoot">
+      <div class="gallery"><img src="${p.image_url}" alt="${p.name}"></div>
+      <div>
+        <div style="font-size:12px; letter-spacing:0.15em; color:var(--gold-soft); text-transform:uppercase;">${p.category_name || ''}</div>
+        <h1>${p.name}</h1>
+        <div class="price-row">${formatPrice(p.price)} ${p.compare_price ? `<span class="compare">${formatPrice(p.compare_price)}</span>` : ''}</div>
+        <p class="desc">${p.description || ''}</p>
+        <table class="spec-table">
+          <tr><td>Metal</td><td>${p.metal}</td></tr>
+          <tr><td>Finish</td><td>${p.finish || '—'}</td></tr>
+          <tr><td>Weight</td><td>${p.weight || '—'}</td></tr>
+          <tr><td>Size</td><td>${p.size || '—'}</td></tr>
+          <tr><td>Availability</td><td>${p.stock > 0 ? `In Stock (${p.stock} left)` : 'Out of Stock'}</td></tr>
+        </table>
+        <div class="qty-selector">
+          <button id="qtyMinus">−</button>
+          <span id="qtyVal">1</span>
+          <button id="qtyPlus">+</button>
+        </div>
+        <button class="btn btn-solid btn-full" id="addToCartBtn" ${p.stock<=0?'disabled':''}>${p.stock<=0?'Out of Stock':'Add to Cart'}</button>
+        <p style="font-size:13px; color:#888; margin-top:20px;">✦ 925 Sterling Silver &nbsp; ✦ Handcrafted with Care &nbsp; ✦ Perfect for Gifting</p>
+      </div>
+    </section>`;
+
+    document.getElementById('qtyMinus').onclick = () => { qty = Math.max(1, qty-1); document.getElementById('qtyVal').textContent = qty; };
+    document.getElementById('qtyPlus').onclick = () => { qty = Math.min(p.stock, qty+1); document.getElementById('qtyVal').textContent = qty; };
+    document.getElementById('addToCartBtn').onclick = async () => {
+      try {
+        await api('/api/cart/add', { method: 'POST', body: JSON.stringify({ productId: p.id, quantity: qty }) });
+        toast('Added to cart');
+        refreshCartBadge();
+      } catch (e) { toast(e.message); }
+    };
+  } catch (e) {
+    document.getElementById('productRoot').innerHTML = '<p style="text-align:center; padding:60px;">Product not found.</p>';
+  }
+}
+load();
+</script>
+</body>
+</html>

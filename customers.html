@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Customers — SALANYA Admin</title>
+<link rel="stylesheet" href="/css/admin.css">
+</head>
+<body class="admin">
+<div class="admin-shell">
+  <div class="admin-sidebar" id="adminSidebar"></div>
+  <div class="admin-main">
+    <div class="admin-topbar"><h1>Customers</h1></div>
+    <table class="a-table">
+      <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Orders</th><th>Total Spent</th><th>Joined</th></tr></thead>
+      <tbody id="custBody"><tr><td colspan="6">Loading…</td></tr></tbody>
+    </table>
+  </div>
+</div>
+<script src="/js/admin/common.js"></script>
+<script>
+(async () => {
+  await initAdminShell('customers');
+  const customers = await aApi('/api/admin/customers');
+  document.getElementById('custBody').innerHTML = customers.map(c => `
+    <tr>
+      <td>${c.name}</td>
+      <td>${c.email}</td>
+      <td>${c.phone || '—'}</td>
+      <td>${c.order_count}</td>
+      <td>${aFormatPrice(c.total_spent)}</td>
+      <td>${new Date(c.created_at).toLocaleDateString('en-IN')}</td>
+    </tr>`).join('') || '<tr><td colspan="6">No customers yet — they appear here once someone creates an account.</td></tr>';
+})();
+</script>
+</body>
+</html>

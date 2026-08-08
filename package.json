@@ -1,0 +1,25 @@
+{
+  "name": "salanya-store",
+  "version": "1.0.0",
+  "description": "SALANYA — Wear Silver Art. 925 Sterling Silver Jewellery e-commerce store with admin panel, cart, Razorpay payments, and customer dashboard.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "seed": "node db/seed.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "better-sqlite3": "^11.3.0",
+    "express-session": "^1.18.0",
+    "better-sqlite3-session-store": "^0.1.0",
+    "bcryptjs": "^2.4.3",
+    "razorpay": "^2.9.4",
+    "dotenv": "^16.4.5",
+    "multer": "^2.0.1",
+    "cookie-parser": "^1.4.6",
+    "express-validator": "^7.1.0"
+  }
+}

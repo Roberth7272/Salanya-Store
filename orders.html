@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Orders — SALANYA Admin</title>
+<link rel="stylesheet" href="/css/admin.css">
+</head>
+<body class="admin">
+<div class="admin-shell">
+  <div class="admin-sidebar" id="adminSidebar"></div>
+  <div class="admin-main">
+    <div class="admin-topbar"><h1>Orders</h1></div>
+    <table class="a-table">
+      <thead><tr><th>Order #</th><th>Customer</th><th>Date</th><th>Total</th><th>Payment</th><th>Status</th><th></th></tr></thead>
+      <tbody id="ordersBody"><tr><td colspan="7">Loading…</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="a-modal-overlay" id="modalOverlay" style="display:none;">
+  <div class="a-modal" id="orderModal"></div>
+</div>
+
+<script src="/js/admin/common.js"></script>
+<script>
+async function loadOrders() {
+  const orders = await aApi('/api/admin/orders');
+  document.getElementById('ordersBody').innerHTML = orders.map(o => `
+    <tr>
+      <td>${o.order_number}</td>
+      <td>${o.customer_name}</td>
+      <td>${new Date(o.created_at).toLocaleDateString('en-IN')}</td>
+      <td>${aFormatPrice(o.total)}</td>
+      <td><span class="a-badge ${o.payment_status}">${o.payment_status}</span></td>
+      <td><span class="a-badge ${o.status}">${o.status}</span></td>
+      <td><button class="a-btn a-btn-sm viewBtn" data-id="${o.id}">View</button></td>
+    </tr>`).join('') || '<tr><td colspan="7">No orders yet.</td></tr>';
+
+  aQsa('.viewBtn').forEach(b => b.onclick = () => openOrder(b.dataset.id));
+}
+
+async function openOrder(id) {
+  const o = await aApi('/api/admin/orders/' + id);
+  document.getElementById('orderModal').innerHTML = `
+    <h2>${o.order_number}</h2>
+    <p style="color:var(--a-muted); margin-bottom:14px;">${o.customer_name} · ${o.customer_phone} ${o.customer_email ? '· ' + o.customer_email : ''}</p>
+    <p style="color:var(--a-muted); margin-bottom:14px;">Ship to: ${o.shipping_address}</p>
+    ${o.items.map(i => `<div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--a-border);"><span>${i.product_name} × ${i.quantity}</span><span>${aFormatPrice(i.price*i.quantity)}</span></div>`).join('')}
+    <div style="display:flex; justify-content:space-between; padding:12px 0; font-weight:600;"><span>Total</span><span>${aFormatPrice(o.total)}</span></div>
+
+    <div class="a-form-row" style="margin-top:16px;">
+      <div class="a-form-group"><label>Order Status</label>
+        <select id="statusSelect">
+          ${['pending','paid','processing','shipped','delivered','cancelled'].map(s => `<option value="${s}" ${o.status===s?'selected':''}>${s}</option>`).join('')}
+        </select>
+      </div>
+      <div class="a-form-group"><label>Payment Status</label>
+        <select id="paymentSelect">
+          ${['unpaid','paid','failed','refunded'].map(s => `<option value="${s}" ${o.payment_status===s?'selected':''}>${s}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="a-error" id="orderErr"></div>
+    <div style="display:flex; gap:10px; margin-top:10px;">
+      <button class="a-btn" id="closeOrderBtn">Close</button>
+      <button class="a-btn a-btn-primary" id="saveOrderBtn">Update Order</button>
+    </div>
+  `;
+  document.getElementById('modalOverlay').style.display = 'flex';
+  document.getElementById('closeOrderBtn').onclick = () => document.getElementById('modalOverlay').style.display = 'none';
+  document.getElementById('saveOrderBtn').onclick = async () => {
+    try {
+      await aApi('/api/admin/orders/' + id, { method: 'PATCH', body: JSON.stringify({
+        status: document.getElementById('statusSelect').value,
+        payment_status: document.getElementById('paymentSelect').value
+      })});
+      document.getElementById('modalOverlay').style.display = 'none';
+      loadOrders();
+    } catch (e) { document.getElementById('orderErr').textContent = e.message; }
+  };
+}
+
+(async () => { await initAdminShell('orders'); loadOrders(); })();
+</script>
+</body>
+</html>

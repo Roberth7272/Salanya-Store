@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Checkout — SALANYA</title>
+<link rel="stylesheet" href="/css/style.css">
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+</head>
+<body>
+<div id="site-header"></div>
+
+<section class="checkout-grid">
+  <div>
+    <h1 style="margin-bottom:24px;">Checkout</h1>
+    <form id="checkoutForm">
+      <div class="form-group"><label>Full Name</label><input required name="customer_name" id="customer_name"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Email</label><input type="email" name="customer_email" id="customer_email"></div>
+        <div class="form-group"><label>Phone</label><input required name="customer_phone" id="customer_phone"></div>
+      </div>
+      <div class="form-group"><label>Address Line 1</label><input required name="line1" id="line1"></div>
+      <div class="form-group"><label>Address Line 2 (optional)</label><input name="line2" id="line2"></div>
+      <div class="form-row">
+        <div class="form-group"><label>City</label><input required name="city" id="city"></div>
+        <div class="form-group"><label>State</label><input name="state" id="state"></div>
+      </div>
+      <div class="form-group"><label>Pincode</label><input required name="pincode" id="pincode"></div>
+
+      <div style="margin:26px 0 14px; font-family:'Cinzel',serif; font-size:13px; letter-spacing:0.08em; color:var(--gold-soft);">PAYMENT METHOD</div>
+      <div class="pay-option active" data-method="razorpay" id="payRazorpay">
+        <input type="radio" name="payment_method" value="razorpay" checked> Pay Online — Cards / UPI / Netbanking (Razorpay)
+      </div>
+      <div class="pay-option" data-method="cod" id="payCod">
+        <input type="radio" name="payment_method" value="cod"> Cash on Delivery
+      </div>
+
+      <div class="error-msg" id="checkoutError"></div>
+      <button type="submit" class="btn btn-solid btn-full" style="margin-top:20px;" id="placeOrderBtn">Place Order</button>
+    </form>
+  </div>
+
+  <div class="checkout-summary" id="checkoutSummary">
+    <div class="loader">Loading cart…</div>
+  </div>
+</section>
+
+<div id="site-footer"></div>
+<script src="/js/main.js"></script>
+<script>
+let cartData = null;
+let razorpayEnabled = false;
+
+async function init() {
+  cartData = await api('/api/cart');
+  if (cartData.items.length === 0) { location.href = '/cart.html'; return; }
+
+  document.getElementById('checkoutSummary').innerHTML = `
+    <h3 style="font-size:16px; margin-bottom:16px; font-family:'Cinzel',serif;">Order Summary</h3>
+    ${cartData.items.map(i => `
+      <div style="display:flex; justify-content:space-between; padding:8px 0; font-size:15px; color:var(--silver);">
+        <span>${i.name} × ${i.quantity}</span><span>${formatPrice(i.lineTotal)}</span>
+      </div>`).join('')}
+    <div class="summary-line" style="margin-top:12px;"><span>Subtotal</span><span>${formatPrice(cartData.subtotal)}</span></div>
+    <div class="summary-line"><span>Shipping</span><span>${cartData.shipping_fee===0?'FREE':formatPrice(cartData.shipping_fee)}</span></div>
+    <div class="summary-line total"><span>Total</span><span>${formatPrice(cartData.total)}</span></div>
+  `;
+
+  const config = await api('/api/checkout/config');
+  razorpayEnabled = config.razorpayEnabled;
+  if (!razorpayEnabled) {
+    document.getElementById('payRazorpay').style.opacity = '0.4';
+    document.getElementById('payRazorpay').querySelector('input').disabled = true;
+    document.getElementById('payRazorpay').innerHTML += '<div style="font-size:12px; color:#888; margin-top:6px;">(Not configured yet — add Razorpay keys)</div>';
+    document.querySelector('input[value="cod"]').checked = true;
+    setActivePayOption('cod');
+  }
+
+  qsa('.pay-option').forEach(el => el.addEventListener('click', () => {
+    const radio = el.querySelector('input');
+    if (radio.disabled) return;
+    radio.checked = true;
+    setActivePayOption(radio.value);
+  }));
+}
+
+function setActivePayOption(method) {
+  qsa('.pay-option').forEach(el => el.classList.toggle('active', el.dataset.method === method));
+}
+
+document.getElementById('checkoutForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const errorEl = document.getElementById('checkoutError');
+  errorEl.textContent = '';
+  const btn = document.getElementById('placeOrderBtn');
+  btn.disabled = true; btn.textContent = 'Processing…';
+
+  const payload = {
+    customer_name: qs('#customer_name').value,
+    customer_email: qs('#customer_email').value,
+    customer_phone: qs('#customer_phone').value,
+    address: {
+      line1: qs('#line1').value, line2: qs('#line2').value,
+      city: qs('#city').value, state: qs('#state').value, pincode: qs('#pincode').value
+    },
+    payment_method: document.querySelector('input[name="payment_method"]:checked').value
+  };
+
+  try {
+    if (payload.payment_method === 'cod') {
+      const result = await api('/api/checkout/place', { method: 'POST', body: JSON.stringify(payload) });
+      location.href = `/order-success.html?order=${result.orderNumber}`;
+      return;
+    }
+
+    // Razorpay flow
+    const config = await api('/api/checkout/config');
+    if (!config.razorpayEnabled) throw new Error('Online payment is not available right now. Please choose Cash on Delivery.');
+
+    const order = await api('/api/checkout/create-order', { method: 'POST' });
+    const rzp = new Razorpay({
+      key: config.keyId,
+      amount: order.amount,
+      currency: order.currency,
+      name: 'SALANYA',
+      description: 'Wear Silver Art — 925 Sterling Silver Jewellery',
+      order_id: order.id,
+      prefill: { name: payload.customer_name, email: payload.customer_email, contact: payload.customer_phone },
+      theme: { color: '#c9a96e' },
+      handler: async function (response) {
+        try {
+          const result = await api('/api/checkout/place', {
+            method: 'POST',
+            body: JSON.stringify({
+              ...payload,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature
+            })
+          });
+          location.href = `/order-success.html?order=${result.orderNumber}`;
+        } catch (err) {
+          errorEl.textContent = err.message;
+          btn.disabled = false; btn.textContent = 'Place Order';
+        }
+      },
+      modal: { ondismiss: function () { btn.disabled = false; btn.textContent = 'Place Order'; } }
+    });
+    rzp.open();
+    btn.disabled = false; btn.textContent = 'Place Order';
+  } catch (err) {
+    errorEl.textContent = err.message;
+    btn.disabled = false; btn.textContent = 'Place Order';
+  }
+});
+
+init();
+</script>
+</body>
+</html>

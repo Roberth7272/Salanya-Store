@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — SALANYA Admin</title>
+<link rel="stylesheet" href="/css/admin.css">
+</head>
+<body class="admin">
+<div class="admin-shell">
+  <div class="admin-sidebar" id="adminSidebar"></div>
+  <div class="admin-main">
+    <div class="admin-topbar"><h1>Dashboard</h1></div>
+    <div class="stat-grid" id="statGrid"></div>
+
+    <div style="display:grid; grid-template-columns: 1.3fr 1fr; gap:20px;">
+      <div>
+        <h3 style="font-size:14px; color:var(--a-muted); margin-bottom:12px;">RECENT ORDERS</h3>
+        <table class="a-table" id="recentOrdersTable">
+          <thead><tr><th>Order</th><th>Customer</th><th>Total</th><th>Status</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div>
+        <h3 style="font-size:14px; color:var(--a-muted); margin-bottom:12px;">TOP PRODUCTS</h3>
+        <table class="a-table" id="topProductsTable">
+          <thead><tr><th>Product</th><th>Units</th><th>Revenue</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="/js/admin/common.js"></script>
+<script>
+(async () => {
+  await initAdminShell('dashboard');
+  try {
+    const s = await aApi('/api/admin/stats');
+    document.getElementById('statGrid').innerHTML = `
+      <div class="stat-card"><div class="label">Revenue (Paid)</div><div class="value">${aFormatPrice(s.totalRevenue)}</div></div>
+      <div class="stat-card"><div class="label">Total Orders</div><div class="value">${s.totalOrders}</div></div>
+      <div class="stat-card"><div class="label">Pending Orders</div><div class="value">${s.pendingOrders}</div></div>
+      <div class="stat-card"><div class="label">Customers</div><div class="value">${s.totalCustomers}</div></div>
+      <div class="stat-card"><div class="label">Active Products</div><div class="value">${s.totalProducts}</div></div>
+    `;
+    document.querySelector('#recentOrdersTable tbody').innerHTML = s.recentOrders.map(o => `
+      <tr><td>${o.order_number}</td><td>${o.customer_name}</td><td>${aFormatPrice(o.total)}</td><td><span class="a-badge ${o.status}">${o.status}</span></td></tr>
+    `).join('') || '<tr><td colspan="4">No orders yet.</td></tr>';
+    document.querySelector('#topProductsTable tbody').innerHTML = s.topProducts.map(p => `
+      <tr><td>${p.product_name}</td><td>${p.units_sold}</td><td>${aFormatPrice(p.revenue)}</td></tr>
+    `).join('') || '<tr><td colspan="3">No sales yet.</td></tr>';
+  } catch (e) { console.error(e); }
+})();
+</script>
+</body>
+</html>

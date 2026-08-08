@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Settings — SALANYA Admin</title>
+<link rel="stylesheet" href="/css/admin.css">
+</head>
+<body class="admin">
+<div class="admin-shell">
+  <div class="admin-sidebar" id="adminSidebar"></div>
+  <div class="admin-main">
+    <div class="admin-topbar"><h1>Settings</h1></div>
+
+    <div style="max-width:440px;">
+      <h3 style="font-size:14px; color:var(--a-muted); margin-bottom:12px;">PAYMENT GATEWAY</h3>
+      <div class="stat-card" style="margin-bottom:24px;" id="gatewayStatus">Checking…</div>
+
+      <h3 style="font-size:14px; color:var(--a-muted); margin-bottom:12px;">CHANGE ADMIN PASSWORD</h3>
+      <form id="pwForm">
+        <div class="a-form-group"><label>Current Password</label><input type="password" required id="currentPassword"></div>
+        <div class="a-form-group"><label>New Password (6+ characters)</label><input type="password" required minlength="6" id="newPassword"></div>
+        <div class="a-error" id="pwErr"></div>
+        <div style="color:var(--a-success); font-size:13px; margin-top:8px;" id="pwSuccess"></div>
+        <button class="a-btn a-btn-primary" style="margin-top:14px;" type="submit">Update Password</button>
+      </form>
+    </div>
+  </div>
+</div>
+<script src="/js/admin/common.js"></script>
+<script>
+(async () => {
+  await initAdminShell('settings');
+  const config = await aApi('/api/checkout/config');
+  document.getElementById('gatewayStatus').innerHTML = config.razorpayEnabled
+    ? `<span class="a-badge paid">Connected</span><p style="margin-top:10px; color:var(--a-muted);">Razorpay is configured. Customers can pay online.</p>`
+    : `<span class="a-badge cancelled">Not Configured</span><p style="margin-top:10px; color:var(--a-muted);">Add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET to your .env file and restart the server to enable online payments. Cash on Delivery works either way.</p>`;
+})();
+
+document.getElementById('pwForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const errEl = document.getElementById('pwErr');
+  const okEl = document.getElementById('pwSuccess');
+  errEl.textContent = ''; okEl.textContent = '';
+  try {
+    await aApi('/api/admin/change-password', { method: 'POST', body: JSON.stringify({
+      currentPassword: document.getElementById('currentPassword').value,
+      newPassword: document.getElementById('newPassword').value
+    })});
+    okEl.textContent = 'Password updated successfully.';
+    document.getElementById('pwForm').reset();
+  } catch (err) { errEl.textContent = err.message; }
+});
+</script>
+</body>
+</html>

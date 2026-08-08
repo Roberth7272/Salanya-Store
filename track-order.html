@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Track Order — SALANYA</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div id="site-header"></div>
+
+<div class="form-panel">
+  <h2 style="text-align:center; margin-bottom:24px; font-size:20px;">Track Your Order</h2>
+  <form id="trackForm">
+    <div class="form-group"><label>Order Number</label><input required id="orderNumber" placeholder="e.g. SLY12345678"></div>
+    <div class="form-group"><label>Email used at checkout</label><input type="email" required id="orderEmail"></div>
+    <div class="error-msg" id="trackError"></div>
+    <button type="submit" class="btn btn-solid btn-full">Track Order</button>
+  </form>
+  <div id="trackResult" style="margin-top:24px;"></div>
+</div>
+
+<div id="site-footer"></div>
+<script src="/js/main.js"></script>
+<script>
+document.getElementById('trackForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const errEl = document.getElementById('trackError');
+  const resultEl = document.getElementById('trackResult');
+  errEl.textContent = ''; resultEl.innerHTML = '';
+  try {
+    const order = await api(`/api/orders/lookup?order_number=${encodeURIComponent(document.getElementById('orderNumber').value)}&email=${encodeURIComponent(document.getElementById('orderEmail').value)}`);
+    resultEl.innerHTML = `
+      <div class="order-card">
+        <div class="meta">
+          <span><strong style="color:var(--cream);">${order.order_number}</strong></span>
+          <span class="status-pill ${order.status}">${order.status}</span>
+        </div>
+        ${order.items.map(i => `<div style="display:flex; justify-content:space-between; padding:6px 0; color:var(--silver); font-size:15px;"><span>${i.product_name} × ${i.quantity}</span><span>${formatPrice(i.price*i.quantity)}</span></div>`).join('')}
+        <div style="text-align:right; margin-top:10px; font-family:'Cinzel',serif;">Total: ${formatPrice(order.total)}</div>
+      </div>`;
+  } catch (err) { errEl.textContent = err.message; }
+});
+</script>
+</body>
+</html>
